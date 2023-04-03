@@ -33,36 +33,36 @@ public class DSclient {
 			// System.out.println("RCVD: " + str);
 
 			// create variables for seaching largest server type and id
-			int largestCore = 0; // what's for?
+			int largestCore = 0; 
 			int count = 0;
 			String largestSerType = "";
-			// String largestSerID = "";
 			Boolean flag = true;
 			int send = 0;
-			// While the last message from ds-server is not NONE do
+			
+		
 			while (true) {
-
 				out.write(("REDY\n").getBytes());
 				out.flush();
 				// System.out.println("sent REDY");
 				str = in.readLine();
-				// System.out.println("RCVD: " + str); // job message
-
+				// System.out.println("RCVD: " + str); // job message:TYPE submitTime jobID estRuntime core...
+				
+				//If the jobeType is NONE, indicating no more jobs, so quit the while loop
 				if (str.equals("NONE"))
 					break;
 
 				// store the type of job and its id
 				String[] jobInfo = str.split(" ");
-				String jobType = jobInfo[0];
+				String jobType = jobInfo[0]; 
 				String jobID = jobInfo[2];
 				// System.out.println("jobType: " + jobType);
 				// System.out.println("jobID: " + jobID);
 
 				// if JCPL continue;
 				if (jobType.equals("JCPL"))
-					continue;
+					continue; 
 
-				if (flag) { // using flag do it only once
+				if (flag) { // using flag(true) do it only once
 					out.write(("GETS All\n").getBytes());
 					out.flush();
 					// System.out.println("sent GETS All");
@@ -84,10 +84,9 @@ public class DSclient {
 						// find the largest server type and id
 						String[] serverInfo = str.split(" ");
 						String serverType = serverInfo[0]; // type
-						// String serverID = serverInfo[1];
 						int coreNum = Integer.parseInt(serverInfo[4]); // core number
 
-						if (coreNum > largestCore) {
+						if (coreNum > largestCore) { 
 							largestSerType = serverType;
 							// largestSerID = serverID;
 							largestCore = coreNum;
