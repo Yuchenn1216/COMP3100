@@ -101,11 +101,11 @@ public class DSclient {
 					out.flush();
 					// System.out.println("sent OK");
 					str = (String) in.readLine();
-					// System.out.println("RCVD: " + str); // Received . indicating no more server
-					// info
+					// System.out.println("RCVD: " + str); // Received . indicating no more server info
+				
 
 				}
-				flag = false;
+				flag = false; //set the flag to false
 
 				// System.out.println("Largest Server Type: " + largestSerType);
 				// System.out.println("Largest Server CoreNumber: " + largestCore);
@@ -115,14 +115,15 @@ public class DSclient {
 					String schdMsg = "SCHD " + jobID + " " + largestSerType + " " + send + "\n";
 					out.write(schdMsg.getBytes());
 					out.flush();
-					send++;
-					send = send % count;
+					send++; //calculates the number of largest servers
+					send = send % count; //using the server from smallest id to largest id, then start from smallest again.
 					// System.out.println("sent SCHD: " + schdMsg);
 					str = in.readLine();
 					// System.out.println("RCVD: " + str);
 				}
 			}
-
+		
+			//quit simulation gracefully 
 			out.write(("QUIT\n").getBytes());
 			out.flush();
 			// System.out.println("sent QUIT");
