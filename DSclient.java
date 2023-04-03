@@ -32,7 +32,7 @@ public class DSclient {
 			str = (String) in.readLine();
 			// System.out.println("RCVD: " + str);
 
-			// create variables for seaching largest server type and id
+			// create variables for seaching largest server type and number of core
 			int largestCore = 0; 
 			int count = 0;
 			String largestSerType = "";
@@ -85,14 +85,14 @@ public class DSclient {
 						String[] serverInfo = str.split(" ");
 						String serverType = serverInfo[0]; // type
 						int coreNum = Integer.parseInt(serverInfo[4]); // core number
-
+						
+						//keep track of the largest server type and core number
 						if (coreNum > largestCore) { 
 							largestSerType = serverType;
-							// largestSerID = serverID;
 							largestCore = coreNum;
-							count = 1;
+							count = 1;  // set count to 1 if the largest server is found
 						} else if (serverType.equals(largestSerType)) {
-							count++;
+							count++; // calculate the number of largest server type
 						}
 
 					}
@@ -105,7 +105,7 @@ public class DSclient {
 				
 
 				}
-				flag = false; //set the flag to false
+				flag = false; //set the flag to false so we won't go into while loop again
 
 				// System.out.println("Largest Server Type: " + largestSerType);
 				// System.out.println("Largest Server CoreNumber: " + largestCore);
