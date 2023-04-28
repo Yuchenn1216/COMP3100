@@ -1,7 +1,7 @@
 import java.io.*;
 import java.net.*;
 
-public class DSclient {
+public class dsClient {
     public static void main(String[] args) {
 
         try {
@@ -28,6 +28,10 @@ public class DSclient {
             System.out.println("RCVD: " + str);
 
             Boolean flag = true;
+            String[] serverInfo;
+            String serverType = "";
+            String serverID = "";
+
             // While the last message from ds-server is not NONE do
             while (true) {
                 out.write(("REDY\n").getBytes());
@@ -63,9 +67,9 @@ public class DSclient {
 
                     // get the first server in the list and schedule the job to it
                     str = (String) in.readLine();
-                    String[] serverInfo = str.split(" ");
-                    String serverType = serverInfo[0];
-                    String serverID = serverInfo[1];
+                    serverInfo = str.split(" ");
+                    serverType = serverInfo[0];
+                    serverID = serverInfo[1];
 
                     for (int i = 1; i < nRecs; i++) {
                         str = (String) in.readLine();
@@ -84,9 +88,9 @@ public class DSclient {
 
             out.write(("QUIT\n").getBytes());
             out.flush();
-            // System.out.println("sent QUIT");
+            System.out.println("sent QUIT");
             str = in.readLine();
-            // System.out.println("RCVD: " + str);
+            System.out.println("RCVD: " + str);
             in.close();
             out.close();
             s.close();
