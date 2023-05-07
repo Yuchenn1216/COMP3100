@@ -1,0 +1,21 @@
+First-Fit (FF)
+Pros:
+Simple and easy to implement.
+Fast algorithm as it scans the list of available resources and selects the first one that fits the job's requirements.
+Cons:
+Can lead to fragmentation of resources as it does not consider future requests.
+May not be able to find a suitable resource for a job if it is too large to fit in the remaining available space.
+Best-Fit (BF)
+Pros:
+Minimizes fragmentation of resources by selecting the resource that is closest in size to the job's requirements.
+Can potentially make more efficient use of available resources compared to FF.
+Cons:
+More complex than FF as it requires sorting the list of available resources by size before selecting the best fit.
+Slower than FF due to the sorting process.
+Worst-Fit (WF)
+Pros:
+Tends to allocate larger resources which can be useful for certain types of jobs.
+Can potentially reduce the number of times resources need to be split.
+Cons:
+Can lead to increased fragmentation of resources as it leaves behind small free areas.
+May not be able to find a suitable resource for a job if it is too small to fit in the remaining available space.
