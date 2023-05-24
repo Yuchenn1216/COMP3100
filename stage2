@@ -3,81 +3,100 @@ import java.net.*;
 
 public class DSclient {
     public static void main(String[] args) {
-
         try {
-            // create a socket
+            // Create a socket
             Socket s = new Socket("localhost", 50000);
-            // Initialise input and output streams associated with the socket
+            // Initialize input and output streams associated with the socket
             DataOutputStream out = new DataOutputStream(s.getOutputStream());
             BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream()));
 
-            // connect ds-server
+            // Connect to ds-server
             // Send HELO
             out.write(("HELO\n").getBytes());
             out.flush();
-            System.out.println("sent HELO");
             String str = (String) in.readLine();
-            System.out.println("RCVD: " + str);
 
             // Send AUTH username
             String username = System.getProperty("user.name");
             out.write(("AUTH " + username + "\n").getBytes());
             out.flush();
-            System.out.println("sent AUTH");
             str = (String) in.readLine();
-            System.out.println("RCVD: " + str);
 
-            Boolean flag = true;
-            // While the last message from ds-server is not NONE do
             while (true) {
                 out.write(("REDY\n").getBytes());
                 out.flush();
-                System.out.println("sent REDY");
                 str = in.readLine();
-                System.out.println("RCVD: " + str); // one of the following type: JOBN,JCPL orNone
-
+                
+                // If the jobType is NONE, indicating no more jobs, so quit the while loop
                 if (str.equals("NONE"))
                     break;
-
-                // store the type of job and its id
+                
+                // Store the type of job and its ID
                 String[] jobInfo = str.split(" ");
                 String jobType = jobInfo[0];
                 String jobID = jobInfo[2];
 
+                // If JCPL, continue
                 if (jobType.equals("JCPL"))
                     continue;
 
-                if (flag) {
-                    // Get the available servers
-                    out.write(("GETS All\n").getBytes());
-                    out.flush();
-                    str = (String) in.readLine(); // DATA X Y
+                // Request server information
+                out.write(("GETS All\n").getBytes());
+                out.flush();
+                str = (String) in.readLine();
+                out.write(("OK\n").getBytes());
+                out.flush();
 
-                    out.write(("OK\n").getBytes());
-                    out.flush();
-                    String[] serverInfoList = str.split(" ");
-                    int nRecs = Integer.parseInt(serverInfoList[1]); // get the number of servers
+                String[] serverInfoList = str.split(" ");
+                int nRecs = Integer.parseInt(serverInfoList[1]);
 
-                    // Find the best server based on the custom scheduling algorithm
-                    String bestServerID = findBestServer(jobInfo, in, nRecs);
-                    if (bestServerID == null) {
-                        System.out.println("No server available");
-                        break;
+                String selectedServer = "";
+                int minTurnaroundTime = Integer.MAX_VALUE;
+                int minRentalCost = Integer.MAX_VALUE;
+
+                for (int i = 0; i < nRecs; i++) {
+                    str = (String) in.readLine();
+                    String[] serverInfo = str.split(" ");
+                    String serverType = serverInfo[0];
+                    int coreNum = Integer.parseInt(serverInfo[4]);
+
+                    // Check if the server has sufficient resources for the job
+                    if (coreNum >= jobCoreRequirement) {
+                        int runningJobs = Integer.parseInt(serverInfo[2]);
+                        int waitingJobs = Integer.parseInt(serverInfo[3]);
+
+                        // If there are no running jobs and waiting jobs, schedule the job
+                        if (runningJobs == 0 && waitingJobs == 0) {
+                            selectedServer = serverType;
+                            break;
+                        }
+
+                        // Calculate the expected turnaround time and rental cost
+                        int turnaroundTime = calculateTurnaroundTime(jobID, serverType, runningJobs, waitingJobs);
+                        int rentalCost = calculateRentalCost(jobID, serverType);
+
+                        // Update the selected server if it offers better turnaround time and rental cost
+                        if (turnaroundTime < minTurnaroundTime || (turnaroundTime == minTurnaroundTime && rentalCost < minRentalCost)) {
+                            selectedServer = serverType;
+                            minTurnaroundTime = turnaroundTime;
+                            minRentalCost = rentalCost;
+                        }
                     }
-
-                    // Schedule the job to the best server
-                    String schdMsg = "SCHD " + jobID + " " + bestServerID + "\n";
-                    out.write(schdMsg.getBytes());
-                    out.flush();
                 }
-                flag = false;
+
+                // Schedule the job to the selected server
+                String schdMsg = "SCHD " + jobID + " " + selectedServer + " " + 0 + "\n";
+                out.write(schdMsg.getBytes());
+                out.flush();
+                str = in.readLine();
             }
 
+            // Quit simulation gracefully
             out.write(("QUIT\n").getBytes());
             out.flush();
-            // System.out.println("sent QUIT");
             str = in.readLine();
-            // System.out.println("RCVD: " + str);
+
+            // Close streams and socket
             in.close();
             out.close();
             s.close();
@@ -86,51 +105,13 @@ public class DSclient {
         }
     }
 
-    private static String findBestServer(String[] jobInfo, BufferedReader in, int nRecs) throws IOException {
-        String jobCore = jobInfo[4];
-        String jobRam = jobInfo[5];
-        String jobDisk = jobInfo[6];
+    // Calculate the expected turnaround time for the job on the server
+    private static int calculateTurnaroundTime(String jobID, String serverType, int runningJobs, int waitingJobs) {
 
-        String bestServerID = null;
-        double minTurnaroundTime = Double.MAX_VALUE;
-
-        for (int i = 0; i < nRecs; i++) {
-            String str = (String) in.readLine();
-            System.out.println("RCVD: " + str);
-
-            String[] serverInfo = str.split(" ");
-            String serverType = serverInfo[0];
-            String serverID = serverInfo[1];
-            String serverState = serverInfo[2];
-            int serverCore = Integer.parseInt(serverInfo[4]);
-            int serverRam = Integer.parseInt(serverInfo[5]);
-            int serverDisk = Integer.parseInt(serverInfo[6]);
-
-            // Calculate the estimated turnaround time for the job on the current server
-            double estimatedTurnaroundTime = calculateTurnaroundTime(jobCore, jobRam, jobDisk, serverCore, serverRam, serverDisk);
-
-            // Check if the estimated turnaround time is lower than the current minimum
-            if (estimatedTurnaroundTime < minTurnaroundTime) {
-                // Check if the server is available and has enough resources to handle the job
-                if (serverState.equals("active") && serverCore >= Integer.parseInt(jobCore)
-                        && serverRam >= Integer.parseInt(jobRam) && serverDisk >= Integer.parseInt(jobDisk)) {
-                    bestServerID = serverID;
-                    minTurnaroundTime = estimatedTurnaroundTime;
-                }
-            }
-        }
-
-        return bestServerID;
     }
 
-    private static double calculateTurnaroundTime(String jobCore, String jobRam, String jobDisk, int serverCore,
-            int serverRam, int serverDisk) {
-        // Calculate the estimated turnaround time based on the provided metrics
-        double turnaroundTime = 0.0;
-
-        // You can define your custom formula here to calculate the turnaround time
-        // based on the given job and server resource metrics
-
-        return turnaroundTime;
+    // Calculate the rental cost for the job on the server
+    private static int calculateRentalCost(String jobID, String serverType) {
+    
     }
 }
