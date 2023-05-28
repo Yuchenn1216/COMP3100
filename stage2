@@ -1,117 +1,140 @@
 import java.io.*;
 import java.net.*;
 
-public class DSclient {
-    public static void main(String[] args) {
-        try {
-            // Create a socket
-            Socket s = new Socket("localhost", 50000);
-            // Initialize input and output streams associated with the socket
-            DataOutputStream out = new DataOutputStream(s.getOutputStream());
-            BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream()));
+public class stage1Client {
+	public static void main(String[] args) {
 
-            // Connect to ds-server
-            // Send HELO
-            out.write(("HELO\n").getBytes());
-            out.flush();
-            String str = (String) in.readLine();
+		try {
+			// create a socket
+			Socket s = new Socket("localhost", 50000);
+			// Initialise input and output streams associated with the socket
+			DataOutputStream out = new DataOutputStream(s.getOutputStream());
+			BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream()));
 
-            // Send AUTH username
-            String username = System.getProperty("user.name");
-            out.write(("AUTH " + username + "\n").getBytes());
-            out.flush();
-            str = (String) in.readLine();
+			// System.out.println("Target IP: " + s.getInetAddress() + "Target Port: " +
+			// s.getPort());
+			// System.out.println("Local IP: " + s.getLocalAddress() + "Local Port: " +
+			// s.getLocalPort());
 
-            while (true) {
-                out.write(("REDY\n").getBytes());
-                out.flush();
-                str = in.readLine();
-                
-                // If the jobType is NONE, indicating no more jobs, so quit the while loop
-                if (str.equals("NONE"))
-                    break;
-                
-                // Store the type of job and its ID
-                String[] jobInfo = str.split(" ");
-                String jobType = jobInfo[0];
-                String jobID = jobInfo[2];
+			// connect ds-server
+			// Send HELO
+			out.write(("HELO\n").getBytes());
+			out.flush();
+			// System.out.println("sent HELO");
+			String str = (String) in.readLine();
+			// System.out.println("RCVD: " + str);
 
-                // If JCPL, continue
-                if (jobType.equals("JCPL"))
-                    continue;
+			// Send AUTH username
+			String username = System.getProperty("user.name");
+			out.write(("AUTH " + username + "\n").getBytes());
+			out.flush();
+			// System.out.println("sent AUTH");
+			str = (String) in.readLine();
+			// System.out.println("RCVD: " + str);
 
-                // Request server information
-                out.write(("GETS All\n").getBytes());
-                out.flush();
-                str = (String) in.readLine();
-                out.write(("OK\n").getBytes());
-                out.flush();
+			// create variables for seaching largest server type and id
+			int largestCore = 0; // what's for?
+			int count = 0;
+			String largestSerType = "";
+			// String largestSerID = "";
+			Boolean flag = true;
+			int send = 0;
+			// While the last message from ds-server is not NONE do
+			while (true) {
 
-                String[] serverInfoList = str.split(" ");
-                int nRecs = Integer.parseInt(serverInfoList[1]);
+				out.write(("REDY\n").getBytes());
+				out.flush();
+				// System.out.println("sent REDY");
+				str = in.readLine();
+				// System.out.println("RCVD: " + str); // job message
 
-                String selectedServer = "";
-                int minTurnaroundTime = Integer.MAX_VALUE;
-                int minRentalCost = Integer.MAX_VALUE;
+				if (str.equals("NONE"))
+					break;
 
-                for (int i = 0; i < nRecs; i++) {
-                    str = (String) in.readLine();
-                    String[] serverInfo = str.split(" ");
-                    String serverType = serverInfo[0];
-                    int coreNum = Integer.parseInt(serverInfo[4]);
+				// store the type of job and its id
+				String[] jobInfo = str.split(" ");
+				String jobType = jobInfo[0];
+				String jobID = jobInfo[2];
+				// System.out.println("jobType: " + jobType);
+				// System.out.println("jobID: " + jobID);
 
-                    // Check if the server has sufficient resources for the job
-                    if (coreNum >= jobCoreRequirement) {
-                        int runningJobs = Integer.parseInt(serverInfo[2]);
-                        int waitingJobs = Integer.parseInt(serverInfo[3]);
+				// if JCPL continue;
+				if (jobType.equals("JCPL"))
+					continue;
 
-                        // If there are no running jobs and waiting jobs, schedule the job
-                        if (runningJobs == 0 && waitingJobs == 0) {
-                            selectedServer = serverType;
-                            break;
-                        }
+				if (flag) { // using flag do it only once
+					out.write(("GETS All\n").getBytes());
+					out.flush();
+					// System.out.println("sent GETS All");
+					str = (String) in.readLine();
+					// System.out.println("RCVD: " + str); // DATA X Y
 
-                        // Calculate the expected turnaround time and rental cost
-                        int turnaroundTime = calculateTurnaroundTime(jobID, serverType, runningJobs, waitingJobs);
-                        int rentalCost = calculateRentalCost(jobID, serverType);
+					out.write(("OK\n").getBytes());
+					out.flush();
+					// System.out.println("sent OK");
 
-                        // Update the selected server if it offers better turnaround time and rental cost
-                        if (turnaroundTime < minTurnaroundTime || (turnaroundTime == minTurnaroundTime && rentalCost < minRentalCost)) {
-                            selectedServer = serverType;
-                            minTurnaroundTime = turnaroundTime;
-                            minRentalCost = rentalCost;
-                        }
-                    }
-                }
+					String[] serverInfoList = str.split(" ");
+					int nRecs = Integer.parseInt(serverInfoList[1]); // get the number of servers
+					// System.out.println("nRecs: " + nRecs);
 
-                // Schedule the job to the selected server
-                String schdMsg = "SCHD " + jobID + " " + selectedServer + " " + 0 + "\n";
-                out.write(schdMsg.getBytes());
-                out.flush();
-                str = in.readLine();
-            }
+					for (int i = 0; i < nRecs; i++) {
+						str = (String) in.readLine();
+						// System.out.println("RCVD: " + str);
 
-            // Quit simulation gracefully
-            out.write(("QUIT\n").getBytes());
-            out.flush();
-            str = in.readLine();
+						// find the largest server type and id
+						String[] serverInfo = str.split(" ");
+						String serverType = serverInfo[0]; // type
+						// String serverID = serverInfo[1];
+						int coreNum = Integer.parseInt(serverInfo[4]); // core number
 
-            // Close streams and socket
-            in.close();
-            out.close();
-            s.close();
-        } catch (Exception e) {
-            System.out.println(e);
-        }
-    }
+						if (coreNum > largestCore) {
+							largestSerType = serverType;
+							// largestSerID = serverID;
+							largestCore = coreNum;
+							count = 1;
+						} else if (serverType.equals(largestSerType)) {
+							count++;
+						}
 
-    // Calculate the expected turnaround time for the job on the server
-    private static int calculateTurnaroundTime(String jobID, String serverType, int runningJobs, int waitingJobs) {
+					}
 
-    }
+					out.write(("OK\n").getBytes());
+					out.flush();
+					// System.out.println("sent OK");
+					str = (String) in.readLine();
+					// System.out.println("RCVD: " + str); // Received . indicating no more server
+					// info
 
-    // Calculate the rental cost for the job on the server
-    private static int calculateRentalCost(String jobID, String serverType) {
-    
-    }
+				}
+				flag = false;
+
+				// System.out.println("Largest Server Type: " + largestSerType);
+				// System.out.println("Largest Server CoreNumber: " + largestCore);
+
+				// schedule the job if it's JOBN
+				if (jobType.equals("JOBN")) {
+					String schdMsg = "SCHD " + jobID + " " + largestSerType + " " + send + "\n";
+					out.write(schdMsg.getBytes());
+					out.flush();
+					send++;
+					send = send % count;
+					// System.out.println("sent SCHD: " + schdMsg);
+					str = in.readLine();
+					// System.out.println("RCVD: " + str);
+				}
+			}
+
+			out.write(("QUIT\n").getBytes());
+			out.flush();
+			// System.out.println("sent QUIT");
+			str = in.readLine();
+			// System.out.println("RCVD: " + str);
+
+			in.close();
+			out.close();
+			s.close();
+		} catch (Exception e) {
+			System.out.println(e);
+		}
+	}
 }
